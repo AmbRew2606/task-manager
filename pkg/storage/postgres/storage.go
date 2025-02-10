@@ -8,8 +8,6 @@ import (
 
 	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/joho/godotenv"
-	"gorm.io/driver/postgres"
-	"gorm.io/gorm"
 )
 
 // Хранилище данных.
@@ -18,7 +16,7 @@ type Storage struct {
 }
 
 // Функция New - подключение к БД
-func New() (*gorm.DB, error) {
+func New() (*Storage, error) {
 
 	err := godotenv.Load("../../../.env")
 	if err != nil {
@@ -34,15 +32,15 @@ func New() (*gorm.DB, error) {
 	//для теста енв файла, если проблемы
 	// log.Printf("DB_HOST=%s DB_PORT=%s DB_USER=%s DB_NAME=%s", host, port, user, dbname)
 
-	dsn := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
-		host, port, user, password, dbname)
+	dsn := fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable",
+		user, password, host, port, dbname)
 
-	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
+	dbpool, err := pgxpool.Connect(context.Background(), dsn)
 	if err != nil {
 		return nil, fmt.Errorf("ошибка подключения к БД: %w", err)
 	}
 
-	return db, nil
+	return &Storage{db: dbpool}, nil
 }
 
 // Задача.
