@@ -1,5 +1,7 @@
 package storage
 
+import "/postgres"
+
 //Интерфес БД
 type Interface interface {
 	Tasks(int, int) ([]postgres.Task, error)

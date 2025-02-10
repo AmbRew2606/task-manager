@@ -2,8 +2,14 @@ package storage
 
 import (
 	"context"
+	"fmt"
+	"log"
+	"os"
 
 	"github.com/jackc/pgx/v4/pgxpool"
+	"github.com/joho/godotenv"
+	"gorm.io/driver/postgres"
+	"gorm.io/gorm"
 )
 
 // Хранилище данных.
@@ -11,16 +17,32 @@ type Storage struct {
 	db *pgxpool.Pool
 }
 
-// Конструктор, принимает строку подключения к БД.
-func New(constr string) (*Storage, error) {
-	db, err := pgxpool.Connect(context.Background(), constr)
+// Функция New - подключение к БД
+func New() (*gorm.DB, error) {
+
+	err := godotenv.Load("../../../.env")
 	if err != nil {
-		return nil, err
+		log.Println("Не удалось загрузить .env файл, используем переменные окружения")
 	}
-	s := Storage{
-		db: db,
+
+	host := os.Getenv("DB_HOST")
+	port := os.Getenv("DB_PORT")
+	user := os.Getenv("DB_USER")
+	password := os.Getenv("DB_PASSWORD")
+	dbname := os.Getenv("DB_NAME")
+
+	//для теста енв файла, если проблемы
+	// log.Printf("DB_HOST=%s DB_PORT=%s DB_USER=%s DB_NAME=%s", host, port, user, dbname)
+
+	dsn := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
+		host, port, user, password, dbname)
+
+	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
+	if err != nil {
+		return nil, fmt.Errorf("ошибка подключения к БД: %w", err)
 	}
-	return &s, nil
+
+	return db, nil
 }
 
 // Задача.
