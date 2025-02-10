@@ -1,6 +1,6 @@
 package storage
 
-import "/postgres"
+import "task-meneger/pkg/storage/postgres"
 
 //Интерфес БД
 type Interface interface {
