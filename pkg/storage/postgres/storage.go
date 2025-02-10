@@ -3,11 +3,9 @@ package postgres
 import (
 	"context"
 	"fmt"
-	"log"
 	"os"
 
 	"github.com/jackc/pgx/v4/pgxpool"
-	"github.com/joho/godotenv"
 )
 
 // Хранилище данных.
@@ -18,10 +16,10 @@ type Storage struct {
 // Функция New - подключение к БД
 func New() (*Storage, error) {
 
-	err := godotenv.Load("../../../.env")
-	if err != nil {
-		log.Println("Не удалось загрузить .env файл, используем переменные окружения")
-	}
+	// err := godotenv.Load("../../../.env")
+	// if err != nil {
+	// 	log.Println("Не удалось загрузить .env файл, используем переменные окружения")
+	// }
 
 	host := os.Getenv("DB_HOST")
 	port := os.Getenv("DB_PORT")
@@ -29,7 +27,18 @@ func New() (*Storage, error) {
 	password := os.Getenv("DB_PASSWORD")
 	dbname := os.Getenv("DB_NAME")
 
-	//для теста енв файла, если проблемы
+	// log.Println("DB_HOST:", os.Getenv("DB_HOST"))
+	// log.Println("DB_PORT:", os.Getenv("DB_PORT"))
+	// log.Println("DB_USER:", os.Getenv("DB_USER"))
+	// log.Println("DB_NAME:", os.Getenv("DB_NAME"))
+
+	// host := "localhost"
+	// port := "5433"
+	// user := "postgres"
+	// password := "2606"
+	// dbname := "db_task_manager"
+
+	// для теста енв файла, если проблемы
 	// log.Printf("DB_HOST=%s DB_PORT=%s DB_USER=%s DB_NAME=%s", host, port, user, dbname)
 
 	dsn := fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable",
@@ -41,6 +50,11 @@ func New() (*Storage, error) {
 	}
 
 	return &Storage{db: dbpool}, nil
+}
+
+// Закрытие соединения с БД
+func (s *Storage) Close() {
+	s.db.Close()
 }
 
 // Задача.
