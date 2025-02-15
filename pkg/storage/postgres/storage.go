@@ -68,6 +68,12 @@ type Task struct {
 	Content    string
 }
 
+// Метка.
+type Label struct {
+	ID   int
+	Name string
+}
+
 // Tasks возвращает список задач из БД.
 func (s *Storage) Tasks(taskID, authorID int) ([]Task, error) {
 	rows, err := s.db.Query(context.Background(), `
@@ -127,4 +133,44 @@ func (s *Storage) NewTask(t Task) (int, error) {
 		t.Content,
 	).Scan(&id)
 	return id, err
+}
+
+func (s *Storage) Labels() ([]Label, error) {
+	rows, err := s.db.Query(context.Background(), `
+		SELECT id, name FROM labels ORDER BY id;
+	`)
+	if err != nil {
+		return nil, fmt.Errorf("ошибка при получении меток: %w", err)
+	}
+	defer rows.Close()
+
+	var labels []Label
+
+	for rows.Next() {
+		var l Label
+		if err := rows.Scan(&l.ID, &l.Name); err != nil {
+			return nil, fmt.Errorf("ошибка при сканировании метки: %w", err)
+		}
+		labels = append(labels, l)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("ошибка при обработке строк: %w", err)
+	}
+
+	return labels, nil
+}
+
+func (s *Storage) NewLabel(l Label) (int, error) {
+	var id int
+	err := s.db.QueryRow(context.Background(), `
+		INSERT INTO labels (name)
+		VALUES ($1)
+		RETURNING id;
+	`, l.Name).Scan(&id)
+
+	if err != nil {
+		return 0, fmt.Errorf("ошибка при создании метки: %w", err)
+	}
+	return id, nil
 }

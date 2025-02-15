@@ -27,7 +27,9 @@ func main() {
 	log.Println("DB_NAME:", os.Getenv("DB_NAME"))
 
 	// Подключение к БД
-	storage, err := postgres.New()
+	// Подключение к БД
+	var storage storage.Interface
+	storage, err = postgres.New()
 	if err != nil {
 		log.Fatalf("Ошибка подключения к БД: %v", err)
 	}
@@ -41,7 +43,9 @@ func main() {
 		fmt.Println("\nВыберите действие:")
 		fmt.Println("1. Посмотреть список задач")
 		fmt.Println("2. Создать новую задачу")
-		fmt.Println("3. Выйти")
+		fmt.Println("3. Посмотреть список меток") // Новый пункт
+		fmt.Println("4. Создать новую метку")
+		fmt.Println("5. Выйти")
 
 		fmt.Print("Введите номер действия: ")
 		scanner.Scan()
@@ -53,6 +57,10 @@ func main() {
 		case "2":
 			createTask(scanner, storage)
 		case "3":
+			printLabels(storage) // Вызываем новую функцию
+		case "4":
+			createLabel(scanner, storage)
+		case "5":
 			fmt.Println("Выход...")
 			return
 		default:
@@ -102,4 +110,42 @@ func createTask(scanner *bufio.Scanner, storage storage.Interface) {
 	}
 
 	fmt.Printf("Задача успешно создана! ID: %d\n", id)
+}
+
+func printLabels(storage storage.Interface) {
+	labels, err := storage.Labels()
+	if err != nil {
+		fmt.Println("Ошибка при получении списка меток:", err)
+		return
+	}
+
+	if len(labels) == 0 {
+		fmt.Println("Метки отсутствуют.")
+		return
+	}
+
+	fmt.Println("\nСписок меток:")
+	for _, label := range labels {
+		fmt.Printf("ID: %d | Name: %s\n", label.ID, label.Name)
+	}
+}
+
+func createLabel(scanner *bufio.Scanner, storage storage.Interface) {
+	fmt.Print("Введите название метки: ")
+	scanner.Scan()
+
+	name := strings.TrimSpace(scanner.Text())
+
+	label := postgres.Label{
+		Name: name,
+	}
+
+	id, err := storage.NewLabel(label)
+	if err != nil {
+		fmt.Println("Ошибка при создании метки: ", err)
+		return
+	}
+
+	fmt.Printf("Метка успешно создана! ID: %d\n", id)
+
 }
