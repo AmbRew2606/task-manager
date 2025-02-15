@@ -45,7 +45,9 @@ func main() {
 		fmt.Println("2. Создать новую задачу")
 		fmt.Println("3. Посмотреть список меток") // Новый пункт
 		fmt.Println("4. Создать новую метку")
-		fmt.Println("5. Выйти")
+		fmt.Println("5. Посмотреть список пользователей")
+		fmt.Println("6. Создать нового пользователя")
+		fmt.Println("7. Выйти")
 
 		fmt.Print("Введите номер действия: ")
 		scanner.Scan()
@@ -61,6 +63,10 @@ func main() {
 		case "4":
 			createLabel(scanner, storage)
 		case "5":
+			printUsers(storage)
+		case "6":
+			createUser(scanner, storage)
+		case "7":
 			fmt.Println("Выход...")
 			return
 		default:
@@ -148,4 +154,41 @@ func createLabel(scanner *bufio.Scanner, storage storage.Interface) {
 
 	fmt.Printf("Метка успешно создана! ID: %d\n", id)
 
+}
+
+func printUsers(storage storage.Interface) {
+	users, err := storage.Users()
+	if err != nil {
+		fmt.Println("Ошибка при получении списка меток:", err)
+		return
+	}
+
+	if len(users) == 0 {
+		fmt.Println("Метки отсутствуют.")
+		return
+	}
+
+	fmt.Println("\nСписок пользователей:")
+	for _, user := range users {
+		fmt.Printf("ID: %d | Name: %s\n", user.ID, user.Name)
+	}
+}
+
+func createUser(scanner *bufio.Scanner, storage storage.Interface) {
+	fmt.Print("Введите имя пользователя: ")
+	scanner.Scan()
+
+	name := strings.TrimSpace(scanner.Text())
+
+	user := postgres.User{
+		Name: name,
+	}
+
+	id, err := storage.NewUser(user)
+	if err != nil {
+		fmt.Println("Ошибка при создании пользователя: ", err)
+		return
+	}
+
+	fmt.Printf("Пользователь успешно создана! ID: %d\n", id)
 }

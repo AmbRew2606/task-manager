@@ -8,5 +8,7 @@ type Interface interface {
 	NewTask(postgres.Task) (int, error)
 	Labels() ([]postgres.Label, error) // Добавляем Labels()
 	NewLabel(postgres.Label) (int, error)
+	Users() ([]postgres.User, error)
+	NewUser(postgres.User) (int, error)
 	Close() // Добавляем метод закрытия соединения
 }

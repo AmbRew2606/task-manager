@@ -74,6 +74,12 @@ type Label struct {
 	Name string
 }
 
+// Пользователь
+type User struct {
+	ID   int
+	Name string
+}
+
 // Tasks возвращает список задач из БД.
 func (s *Storage) Tasks(taskID, authorID int) ([]Task, error) {
 	rows, err := s.db.Query(context.Background(), `
@@ -171,6 +177,45 @@ func (s *Storage) NewLabel(l Label) (int, error) {
 
 	if err != nil {
 		return 0, fmt.Errorf("ошибка при создании метки: %w", err)
+	}
+	return id, nil
+}
+
+func (s *Storage) Users() ([]User, error) {
+	rows, err := s.db.Query(context.Background(), `
+		SELECT id, name FROM users ORDER BY id;
+	`)
+	if err != nil {
+		return nil, fmt.Errorf("ошибка при получении меток: %w", err)
+	}
+	defer rows.Close()
+
+	var users []User
+
+	for rows.Next() {
+		var u User
+		if err := rows.Scan(&u.ID, &u.Name); err != nil {
+			return nil, fmt.Errorf("ошибка при сканировании пользователей: %w", err)
+		}
+		users = append(users, u)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("ошибка при обработке строк: %w", err)
+	}
+
+	return users, nil
+}
+
+func (s *Storage) NewUser(u User) (int, error) {
+	var id int
+	err := s.db.QueryRow(context.Background(), `
+		INSERT INTO users (name)
+		VALUES ($1)
+		RETURNING id;
+	`, u.Name).Scan(&id)
+
+	if err != nil {
+		return 0, fmt.Errorf("ошибка при создании пользователя: %w", err)
 	}
 	return id, nil
 }
