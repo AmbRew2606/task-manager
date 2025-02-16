@@ -10,7 +10,7 @@ import (
 
 // Хранилище данных.
 type Storage struct {
-	db *pgxpool.Pool
+	db *pgxpool.Pool //ПУЛ СОЕДИНЕНИЙ
 }
 
 // Функция New - подключение к БД
@@ -74,7 +74,7 @@ type Label struct {
 	Name string
 }
 
-// Пользователь
+// Пользователь.
 type User struct {
 	ID   int
 	Name string
@@ -129,18 +129,71 @@ func (s *Storage) Tasks(taskID, authorID int) ([]Task, error) {
 }
 
 // NewTask создаёт новую задачу и возвращает её id.
-func (s *Storage) NewTask(t Task) (int, error) {
-	var id int
+func (s *Storage) NewTask(t Task, labelIDs []int) (int, error) {
+	var taskID int
 	err := s.db.QueryRow(context.Background(), `
-		INSERT INTO tasks (title, content)
-		VALUES ($1, $2) RETURNING id;
+		INSERT INTO tasks (title, content, author_id, assigned_id)
+		VALUES ($1, $2, $3, $4) RETURNING id;
 		`,
 		t.Title,
 		t.Content,
-	).Scan(&id)
-	return id, err
+		t.AuthorID,
+		t.AssignedID,
+	).Scan(&taskID)
+	// return taskID , err
+	if err != nil {
+		return 0, fmt.Errorf("ошибка при создании задачи: %w", err)
+	}
+
+	// 2. Добавляем связи с метками в tasks_labels
+	for _, labelID := range labelIDs {
+		_, err := s.db.Exec(context.Background(), `
+			INSERT INTO tasks_labels (task_id, label_id)
+			VALUES ($1, $2);
+		`, taskID, labelID)
+		if err != nil {
+			return 0, fmt.Errorf("ошибка при добавлении метки: %w", err)
+		}
+	}
+
+	return taskID, nil
+
 }
 
+// UpdateTask обновляет задачу по id.
+func (s *Storage) UpdateTask(t Task) error {
+	_, err := s.db.Exec(context.Background(), `
+		UPDATE tasks 
+		SET title = $1, content = $2, author_id = $3, assigned_id = $4
+		WHERE id = $5;
+		`,
+		t.Title,
+		t.Content,
+		t.AuthorID,
+		t.AssignedID,
+		t.ID)
+
+	if err != nil {
+		return fmt.Errorf("ошибка при обновлении задачи: %w", err)
+	}
+	return nil
+}
+
+// DeleteTask удаляет задачу по id.
+func (s *Storage) DeleteTask(taskID int) error {
+	_, err := s.db.Exec(context.Background(), `
+		DELETE FROM tasks WHERE id = $1;
+	`, taskID)
+
+	if err != nil {
+		return fmt.Errorf("ошибка при удалении задачи: %w", err)
+	}
+
+	fmt.Printf("Задача с ID %d успешно удалена!\n", taskID)
+	return nil
+}
+
+// Labels возвращает список меток из БД.
 func (s *Storage) Labels() ([]Label, error) {
 	rows, err := s.db.Query(context.Background(), `
 		SELECT id, name FROM labels ORDER BY id;
@@ -167,6 +220,7 @@ func (s *Storage) Labels() ([]Label, error) {
 	return labels, nil
 }
 
+// NewLabel создает новую метку и возвращает её id.
 func (s *Storage) NewLabel(l Label) (int, error) {
 	var id int
 	err := s.db.QueryRow(context.Background(), `
@@ -181,6 +235,7 @@ func (s *Storage) NewLabel(l Label) (int, error) {
 	return id, nil
 }
 
+// Users возвращает список пользователей из БД.
 func (s *Storage) Users() ([]User, error) {
 	rows, err := s.db.Query(context.Background(), `
 		SELECT id, name FROM users ORDER BY id;
@@ -206,6 +261,7 @@ func (s *Storage) Users() ([]User, error) {
 	return users, nil
 }
 
+// Users создает нового пользователя и возвращает его id.
 func (s *Storage) NewUser(u User) (int, error) {
 	var id int
 	err := s.db.QueryRow(context.Background(), `
@@ -218,4 +274,35 @@ func (s *Storage) NewUser(u User) (int, error) {
 		return 0, fmt.Errorf("ошибка при создании пользователя: %w", err)
 	}
 	return id, nil
+}
+
+// GetTasksByAuthor возвращает список задач по id автора.
+func (s *Storage) GetTasksByAuthor(authorID int) ([]Task, error) {
+	rows, err := s.db.Query(context.Background(), `
+		SELECT id, title, content, author_id, assigned_id 
+		FROM tasks WHERE author_id = $1;
+	`, authorID)
+	if err != nil {
+		return nil, fmt.Errorf("ошибка при получении задач: %w", err)
+	}
+	defer rows.Close()
+
+	var tasks []Task
+
+	for rows.Next() {
+		var t Task
+		err := rows.Scan(
+			&t.ID,
+			&t.Title,
+			&t.Content,
+			&t.AuthorID,
+			&t.AssignedID,
+		)
+		if err != nil {
+			return nil, err
+		}
+		tasks = append(tasks, t)
+	}
+
+	return tasks, rows.Err()
 }
